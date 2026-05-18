@@ -131,6 +131,7 @@ float   cur_co      = 0.0;
 int     cur_speed   = 0;
 bool    cur_tripped = false;
 String  cur_mode    = "auto";
+bool    cur_fire_alarm = false;
 
 // Signal monitoring
 int     cur_csq         = 0;      // Raw CSQ (0-31, 99=unknown)
@@ -403,19 +404,21 @@ bool mqttConnect() {
 // ══════════════════════════════════════════════════════════════════
 
 void readPLCTelemetry() {
-  /*  Đọc 4 Input Registers bắt đầu từ 0x00:
+  /*  Đọc 5 Input Registers bắt đầu từ 0x00:
    *    IR[0] = CO (ppm × 10, ví dụ: 352 = 35.2 ppm)
    *    IR[1] = Speed (0-100 %)
    *    IR[2] = Tripped (0 hoặc 1)
    *    IR[3] = Mode (0=auto, 1=manual)
+   *    IR[4] = Fire Alarm (0=normal, 1=fire)
    */
-  uint8_t result = modbus.readInputRegisters(0x00, 4);
+  uint8_t result = modbus.readInputRegisters(0x00, 5);
 
   if (result == modbus.ku8MBSuccess) {
     cur_co      = modbus.getResponseBuffer(0) / 10.0;
     cur_speed   = modbus.getResponseBuffer(1);
     cur_tripped = modbus.getResponseBuffer(2) != 0;
     cur_mode    = (modbus.getResponseBuffer(3) == 1) ? "manual" : "auto";
+    cur_fire_alarm = modbus.getResponseBuffer(4) != 0;
   } else {
     Serial.println("[MODBUS] Read failed: 0x" + String(result, HEX));
   }
@@ -431,6 +434,7 @@ void publishTelemetry() {
   doc["speed"]   = cur_speed;
   doc["tripped"] = cur_tripped;
   doc["mode"]    = cur_mode;
+  doc["fire_alarm"] = cur_fire_alarm;
 
   char buf[128];
   serializeJson(doc, buf, sizeof(buf));
@@ -491,7 +495,7 @@ void processSerialCommand(String line) {
     Serial.println("APN          : " + cfg_apn);
     Serial.println("Signal (CSQ) : " + String(modem.getSignalQuality()));
     Serial.println("CO=" + String(cur_co, 1) + " Speed=" + String(cur_speed) +
-                   "% Trip=" + String(cur_tripped) + " Mode=" + cur_mode);
+                   "% Trip=" + String(cur_tripped) + " Mode=" + cur_mode + " Fire=" + String(cur_fire_alarm));
     Serial.print("Profile (" + String(profileLen) + "): ");
     for (int i = 0; i < profileLen; i++)
       Serial.print(String(profile[i].co, 0) + "→" + String(profile[i].speed) + "% ");
@@ -511,7 +515,7 @@ void processSerialCommand(String line) {
   else if (line == "read") {
     readPLCTelemetry();
     Serial.println("CO=" + String(cur_co, 1) + " Speed=" + String(cur_speed) +
-                   " Trip=" + String(cur_tripped) + " Mode=" + cur_mode);
+                   " Trip=" + String(cur_tripped) + " Mode=" + cur_mode + " Fire=" + String(cur_fire_alarm));
   }
   else if (line == "pub") {
     readPLCTelemetry();

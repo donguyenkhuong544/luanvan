@@ -29,7 +29,8 @@ Dữ liệu do thiết bị (vi điều khiển/PLC ở tủ quạt) liên tục
   "co": 35.2,
   "speed": 72,
   "tripped": false,
-  "mode": "auto"
+  "mode": "auto",
+  "fire_alarm": false
 }
 ```
 
@@ -38,6 +39,7 @@ Dữ liệu do thiết bị (vi điều khiển/PLC ở tủ quạt) liên tục
 * `speed` *(integer)*: Tốc độ hiện tại thực tế báo về từ phần cứng (đơn vị: %, khoảng từ `0` đến `100`).
 * `tripped` *(boolean)*: Trạng thái cờ báo lỗi/sự cố (Trip/Fault). Giá trị `true` tức là đang có dòng sự cố hoặc mất pha/quá tải, `false` là quạt hoàn toàn bình thường.
 * `mode` *(string)*: Chế độ vận hành hiện tại bên dưới. Có 2 giá trị là `"auto"` hoặc `"manual"`.
+* `fire_alarm` *(boolean)*: Tín hiệu báo cháy từ tủ PCCC. `true` tức là đang có cháy, hệ thống sẽ tự động ép quạt chạy 100% công suất để hút khói.
 
 ---
 

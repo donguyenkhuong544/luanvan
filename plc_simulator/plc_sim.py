@@ -21,16 +21,17 @@ except Exception:
 
 
 # ── Sim Model ──
-
+# mới tạo thêm trường dữ liệu fire_alarm
 @dataclass
 class SimFanUnit:
     unit_id: str
     mode: str = "auto"
     speed: int = 0
-    co_ppm: float = 12.0
+    co_ppm: float = 0.0
     tripped: bool = False
     co_warn: float = 25.0
     co_alarm: float = 50.0
+    fire_alarm: bool = False            #thêm biến báo cháy
     profile: list = field(default_factory=lambda: [
         {"co": 15, "speed": 30}, {"co": 25, "speed": 50},
         {"co": 35, "speed": 70}, {"co": 50, "speed": 100},
@@ -48,7 +49,11 @@ class SimFanUnit:
         self.co_ppm = max(0, round(self.co_ppm, 1))
         if self.mode == "auto":
             self.speed = self._auto_speed()
-
+            
+        if self.fire_alarm:
+            self.speed = 100
+        if self.Linh_love:
+            self.speed = 100
     def _auto_speed(self):
         pts = sorted(self.profile, key=lambda p: p["co"])
         co = self.co_ppm
@@ -81,7 +86,8 @@ class SimFanUnit:
 
     def to_dict(self):
         return {"co": self.co_ppm, "speed": self.speed,
-                "tripped": self.tripped, "mode": self.mode}
+                "tripped": self.tripped, "mode": self.mode,
+                "fire_alarm": self.fire_alarm}
 
 
 # ── MQTT ──
@@ -233,7 +239,11 @@ class UnitPanel(wx.Panel):
 
         btn_reset = wx.Button(box, label="Reset")
         btn_reset.Bind(wx.EVT_BUTTON, self._on_reset)
-        r3.Add(btn_reset, 0, wx.ALIGN_CENTER_VERTICAL)
+        r3.Add(btn_reset, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 4)
+        
+        self.chk_fire = wx.CheckBox(box, label="Báo Cháy")
+        self.chk_fire.Bind(wx.EVT_CHECKBOX, self._on_fire_alarm)
+        r3.Add(self.chk_fire, 0, wx.ALIGN_CENTER_VERTICAL)
 
         bsizer.Add(r3, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
@@ -249,6 +259,9 @@ class UnitPanel(wx.Panel):
 
     def _on_reset(self, e):
         self.unit.tripped = False
+        
+    def _on_fire_alarm(self, e):
+        self.unit.fire_alarm = self.chk_fire.GetValue()
 
     def refresh(self):
         u = self.unit
@@ -270,13 +283,19 @@ class UnitPanel(wx.Panel):
         else:
             self.lbl_co.SetForegroundColour(wx.Colour(0, 100, 180))
 
-        # Trip status
-        if u.tripped:
+        # Trip status & Fire alarm
+        if u.fire_alarm:
+            self.lbl_trip.SetLabel("FIRE ALARM")
+            self.lbl_trip.SetForegroundColour(wx.RED)
+            self.chk_fire.SetValue(True)
+        elif u.tripped:
             self.lbl_trip.SetLabel("TRIPPED!")
             self.lbl_trip.SetForegroundColour(wx.RED)
+            self.chk_fire.SetValue(False)
         else:
             self.lbl_trip.SetLabel("OK")
             self.lbl_trip.SetForegroundColour(wx.Colour(0, 128, 0))
+            self.chk_fire.SetValue(False)
 
 
 # ── Main Frame ──

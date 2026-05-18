@@ -66,6 +66,7 @@ class FanUnit(models.Model):
     last_co_ppm    = models.FloatField(null=True, blank=True)
     last_speed_pct = models.IntegerField(null=True, blank=True)
     last_tripped   = models.BooleanField(default=False)
+    last_fire_alarm = models.BooleanField('Tín hiệu báo cháy', default=False)
     last_seen      = models.DateTimeField(null=True, blank=True)
 
     # Gateway 4G signal (written by MQTT subscriber thread)
@@ -135,6 +136,7 @@ class FanTelemetry(models.Model):
     speed_pct  = models.IntegerField()
     is_tripped = models.BooleanField(default=False)
     mode       = models.CharField(max_length=10, default='auto')
+    fire_alarm = models.BooleanField('Tín hiệu báo cháy', default=False)
 
     class Meta:
         ordering = ['-timestamp']

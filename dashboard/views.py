@@ -41,6 +41,7 @@ def _unit_summary(unit):
         'co_ppm':       co,
         'speed_pct':    unit.last_speed_pct,
         'is_tripped':   unit.last_tripped,
+        'fire_alarm':   unit.last_fire_alarm,
         'mode':         unit.control_mode,
         'manual_speed': unit.manual_speed,
         'online':       online,
@@ -61,12 +62,14 @@ def home_view(request):
     units = FanUnit.objects.filter(is_active=True)
     running = sum(1 for u in units if u.last_speed_pct and u.last_speed_pct > 0)
     faults  = sum(1 for u in units if u.last_tripped)
+    fire_alarms = sum(1 for u in units if u.last_fire_alarm)
     return render(request, 'dashboard/home.html', {
         'page':        'home',
         'mqtt_config': _mqtt_cfg(),
         'units':       units,
         'running':     running,
         'faults':      faults,
+        'fire_alarms': fire_alarms,
         'total_fans':  units.count(),
     })
 

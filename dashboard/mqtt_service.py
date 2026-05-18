@@ -124,6 +124,7 @@ def _on_message(client, userdata, msg):
         speed_pct  = int(payload.get('speed', 0))
         is_tripped = bool(payload.get('tripped', False))
         mode       = str(payload.get('mode', 'auto'))
+        fire_alarm = bool(payload.get('fire_alarm', False))
 
         # Gateway 4G signal info (optional fields from ESP32)
         rssi       = payload.get('rssi', None)
@@ -147,6 +148,7 @@ def _on_message(client, userdata, msg):
             speed_pct=speed_pct,
             is_tripped=is_tripped,
             mode=mode,
+            fire_alarm=fire_alarm,
         )
 
         # Update cached "last" fields (including gateway signal)
@@ -154,6 +156,7 @@ def _on_message(client, userdata, msg):
             'last_co_ppm': co_ppm,
             'last_speed_pct': speed_pct,
             'last_tripped': is_tripped,
+            'last_fire_alarm': fire_alarm,
             'last_seen': timezone.now(),
         }
         if rssi is not None:
@@ -173,7 +176,7 @@ def _on_message(client, userdata, msg):
             _mqtt_state['messages_received'] += 1
 
         sig_info = f' sig={signal_lbl}({rssi}dBm)' if rssi else ''
-        logger.debug(f'[MQTT Client] {unit_id}: co={co_ppm} speed={speed_pct}% trip={is_tripped}{sig_info}')
+        logger.debug(f'[MQTT Client] {unit_id}: co={co_ppm} speed={speed_pct}% trip={is_tripped} fire={fire_alarm}{sig_info}')
 
     except Exception as exc:
         logger.error(f'[MQTT Client] on_message error: {exc}')
