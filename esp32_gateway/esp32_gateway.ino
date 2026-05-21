@@ -403,6 +403,7 @@ bool mqttConnect() {
 //  MODBUS – Đọc telemetry từ PLC
 // ══════════════════════════════════════════════════════════════════
 
+// đọc Modbus RTU trong hàm readPLCTelemetry
 void readPLCTelemetry() {
   /*  Đọc 5 Input Registers bắt đầu từ 0x00:
    *    IR[0] = CO (ppm × 10, ví dụ: 352 = 35.2 ppm)
@@ -414,7 +415,9 @@ void readPLCTelemetry() {
   uint8_t result = modbus.readInputRegisters(0x00, 5);
 
   if (result == modbus.ku8MBSuccess) {
-    cur_co      = modbus.getResponseBuffer(0) / 10.0;
+    cur_co      = modbus.getResponseBuffer(0) / 10.0; /*thanh ghi modbus là số nguyên 16-bit, nó không truyền được số thập phân.
+    Nên PLC quy ước nhân 10 trước khi ghi vào thanh ghi, sau khi đọc về thì ta chia cho 10, đây là kỹ thuật phổ biến trong truyền thông công nghiệp
+    gọi là fixed-point-scaling dùng số nguyên để biểu diễn số thập phân với độ chính xác cố định*/
     cur_speed   = modbus.getResponseBuffer(1);
     cur_tripped = modbus.getResponseBuffer(2) != 0;
     cur_mode    = (modbus.getResponseBuffer(3) == 1) ? "manual" : "auto";
@@ -424,13 +427,14 @@ void readPLCTelemetry() {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  PUBLISH TELEMETRY
-// ══════════════════════════════════════════════════════════════════
 
+//  PUBLISH TELEMETRY
+
+// đóng gói & gửi dữ liệu đi
+// đọc 5 thanh ghi
 void publishTelemetry() {
   JsonDocument doc;
-  doc["co"]      = round(cur_co * 10.0) / 10.0;  // 1 decimal
+  doc["co"]      = round(cur_co * 10.0) / 10.0;  // 1 decimal, làm tròn 1 chữ số thập phân
   doc["speed"]   = cur_speed;
   doc["tripped"] = cur_tripped;
   doc["mode"]    = cur_mode;

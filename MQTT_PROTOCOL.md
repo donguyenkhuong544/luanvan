@@ -1,4 +1,4 @@
-# Tài Liệu Đặc Tả Giao Thức MQTT - Hệ Thống FanJet BMS
+# Tài Liệu Giao Thức MQTT - Hệ Thống FanJet BMS
 
 Tài liệu này mô tả chi tiết các topic và định dạng payload (JSON) được sử dụng để giao tiếp giữa Web Server (BMS Dashboard - Django) và các thiết bị phần cứng (Bộ điều khiển Quạt).
 

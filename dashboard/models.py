@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
-
+#Lưu trữ và xử lý dữ liệu tại Backend
 class MQTTConfig(models.Model):
     broker_host  = models.CharField('Địa chỉ Broker', max_length=255, default='localhost')
     broker_port  = models.PositiveIntegerField('Cổng', default=1883)
@@ -63,6 +63,7 @@ class FanUnit(models.Model):
     co_alarm_ppm = models.FloatField('Ngưỡng báo động CO (ppm)', default=50.0)
 
     # Cached latest telemetry (written by MQTT subscriber thread)
+    # Thêm trường dữ liệu last_fire_alarm vào Model
     last_co_ppm    = models.FloatField(null=True, blank=True)
     last_speed_pct = models.IntegerField(null=True, blank=True)
     last_tripped   = models.BooleanField(default=False)
@@ -126,7 +127,7 @@ class COSpeedPoint(models.Model):
     def __str__(self):
         return f'{self.fan_unit.unit_id}: {self.co_ppm}ppm → {self.speed_pct}%'
 
-
+# Lưu trữ dữ liệu
 class FanTelemetry(models.Model):
     """Dữ liệu telemetry nhận từ MQTT, lưu vào SQLite"""
     fan_unit   = models.ForeignKey(FanUnit, on_delete=models.CASCADE,

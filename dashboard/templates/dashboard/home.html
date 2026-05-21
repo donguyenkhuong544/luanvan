@@ -489,6 +489,65 @@
   .unit-empty a:hover {
     text-decoration: underline;
   }
+
+  /* Fire alarm banner & badge styles */
+  .fire-banner {
+    display: none;
+    background: linear-gradient(90deg, #ef4444, #f97316);
+    color: #ffffff;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 8px 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+    animation: flash-banner 1.5s infinite;
+  }
+
+  .fire-banner.show {
+    display: block;
+  }
+
+  @keyframes flash-banner {
+    0%, 100% {
+      background: linear-gradient(90deg, #ef4444, #f97316);
+    }
+    50% {
+      background: linear-gradient(90deg, #b91c1c, #ea580c);
+    }
+  }
+
+  .fire-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 10.5px;
+    font-weight: 800;
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    animation: pulse-fire 1.5s ease-in-out infinite;
+  }
+
+  .fire-badge svg {
+    width: 10px;
+    height: 10px;
+    fill: currentColor;
+  }
+
+  @keyframes pulse-fire {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+    50% {
+      transform: scale(1.03);
+      box-shadow: 0 0 6px 2px rgba(239, 68, 68, 0.2);
+    }
+  }
 </style>
 {% endblock %}
 
@@ -533,7 +592,6 @@
       <div class="kpi-val" style="color:var(--red)">{{ faults }}</div>
       <div class="kpi-lbl">Trip / Lỗi</div>
     </div>
-    /* Báo cháy*/
   </div>
   <div class="kpi-card">
     <div class="kpi-icon" style="background:linear-gradient(135deg,rgba(239,68,68,.2),rgba(251,146,60,.2))">
@@ -622,28 +680,35 @@
           </g>
         </svg>
       </div>
-      <div class="speed-info">
-        {% if unit.last_tripped %}
-        <div class="trip-badge"><svg viewBox="0 0 24 24">
+      <div class="speed-info" id="speed-info-{{ unit.unit_id }}">
+        <!-- Trip Badge -->
+        <div class="trip-badge" id="trip-badge-{{ unit.unit_id }}" style="display: {% if unit.last_tripped %}inline-flex{% else %}none{% endif %};">
+          <svg viewBox="0 0 24 24">
             <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             <line x1="12" y1="9" x2="12" y2="13" />
             <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg> TRIP</div>
-        {% elif unit.last_fire_alarm %}
-        <div class="fire-badge" id="fire-badge-{{ unit.unit_id }}"><svg viewBox="0 0 24 24" fill="currentColor">
-            <path
-              d="M12 23c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm0-20C7.6 3 4.2 7.3 5.1 11.7l1.4 7.3h11l1.4-7.3C19.8 7.3 16.4 3 12 3z" />
-          </svg> FIRE 100%</div>
-        {% else %}
-        <div class="speed-num" id="spd-val-{{ unit.unit_id }}">{{ unit.last_speed_pct|default:"0" }}<span
-            style="font-size:13px;font-weight:500;color:var(--txt-2)">%</span></div>
-        <div class="speed-unit">Tốc độ</div>
-        <div class="speed-bar-wrap">
-          <div class="speed-bar" id="spd-bar-{{ unit.unit_id }}" style="width:{{ unit.last_speed_pct|default:0 }}%">
+          </svg> TRIP
+        </div>
+
+        <!-- Fire Badge -->
+        <div class="fire-badge" id="fire-badge-{{ unit.unit_id }}" style="display: {% if not unit.last_tripped and unit.last_fire_alarm %}inline-flex{% else %}none{% endif %};">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 23c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm0-20C7.6 3 4.2 7.3 5.1 11.7l1.4 7.3h11l1.4-7.3C19.8 7.3 16.4 3 12 3z" />
+          </svg> FIRE 100%
+        </div>
+
+        <!-- Normal Speed Container -->
+        <div class="speed-normal-wrap" id="speed-normal-wrap-{{ unit.unit_id }}" style="display: {% if not unit.last_tripped and not unit.last_fire_alarm %}block{% else %}none{% endif %};">
+          <div class="speed-num" id="spd-val-{{ unit.unit_id }}">{{ unit.last_speed_pct|default:"0" }}<span
+              style="font-size:13px;font-weight:500;color:var(--txt-2)">%</span></div>
+          <div class="speed-unit">Tốc độ</div>
+          <div class="speed-bar-wrap">
+            <div class="speed-bar" id="spd-bar-{{ unit.unit_id }}" style="width:{{ unit.last_speed_pct|default:0 }}%">
+            </div>
           </div>
         </div>
-        {% endif %}
-        {% if not online %}<div style="font-size:10px;color:var(--txt-3);margin-top:4px">● Offline</div>{% endif %}
+
+        <div id="offline-status-{{ unit.unit_id }}" style="font-size:10px;color:var(--txt-3);margin-top:4px; display: {% if not online %}block{% else %}none{% endif %};">● Offline</div>
       </div>
     </div>
 
@@ -696,8 +761,8 @@
   {% for unit in units %}
   UNIT_DATA['{{ unit.unit_id }}'] = {
     co_warn: {{ unit.co_warn_ppm }},
-  co_alarm: { { unit.co_alarm_ppm } },
-};
+    co_alarm: {{ unit.co_alarm_ppm }},
+  };
   {% endfor %}
 
   function setMode(uid, mode, btn) {
@@ -770,11 +835,34 @@
         cst.className = 'co-status-txt ' + st;
         cst.textContent = st === 'alarm' ? '⚠ Báo động CO!' : st === 'warning' ? '⚡ Cảnh báo CO' : st === 'normal' ? '✓ CO bình thường' : 'Chưa có dữ liệu';
       }
-      // Speed
-      var spdEl = document.getElementById('spd-val-' + uid);
-      if (spdEl) spdEl.innerHTML = (spd || 0) + '<span style="font-size:13px;font-weight:500;color:var(--txt-2)">%</span>';
-      var sbar = document.getElementById('spd-bar-' + uid);
-      if (sbar) sbar.style.width = (spd || 0) + '%';
+      // Speed and badges display
+      var tripEl = document.getElementById('trip-badge-' + uid);
+      var fireBadgeEl = document.getElementById('fire-badge-' + uid);
+      var speedWrapEl = document.getElementById('speed-normal-wrap-' + uid);
+      var offlineEl = document.getElementById('offline-status-' + uid);
+
+      if (offlineEl) offlineEl.style.display = u.online ? 'none' : 'block';
+
+      if (u.is_tripped) {
+        if (tripEl) tripEl.style.display = 'inline-flex';
+        if (fireBadgeEl) fireBadgeEl.style.display = 'none';
+        if (speedWrapEl) speedWrapEl.style.display = 'none';
+      } else if (u.fire_alarm) {
+        if (tripEl) tripEl.style.display = 'none';
+        if (fireBadgeEl) fireBadgeEl.style.display = 'inline-flex';
+        if (speedWrapEl) speedWrapEl.style.display = 'none';
+      } else {
+        if (tripEl) tripEl.style.display = 'none';
+        if (fireBadgeEl) fireBadgeEl.style.display = 'none';
+        if (speedWrapEl) speedWrapEl.style.display = 'block';
+        
+        // Update speed inside the container
+        var spdEl = document.getElementById('spd-val-' + uid);
+        if (spdEl) spdEl.innerHTML = (spd || 0) + '<span style="font-size:13px;font-weight:500;color:var(--txt-2)">%</span>';
+        var sbar = document.getElementById('spd-bar-' + uid);
+        if (sbar) sbar.style.width = (spd || 0) + '%';
+      }
+
       // Fan animation
       var wrap = document.getElementById('fanwrap-' + uid);
       var blades = document.getElementById('fanblades-' + uid);

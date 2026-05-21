@@ -17,7 +17,7 @@ from accounts.decorators import role_required
 logger = logging.getLogger(__name__)
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# xây dựng API, kiểu như người giúp đỡ
 
 def _mqtt_cfg():
     cfg, _ = MQTTConfig.objects.get_or_create(pk=1)
@@ -30,10 +30,11 @@ def _ollama_cfg():
 
 
 def _unit_summary(unit):
-    """Dict used for API responses and context."""
+    """Từ điển riêng của API"""
     online = unit.is_online()
     co     = unit.last_co_ppm
     status = unit.co_status()
+    # nơi tạo hàm định dạng dữ liệu quạt
     return {
         'unit_id':      unit.unit_id,
         'name':         unit.name,
@@ -41,7 +42,7 @@ def _unit_summary(unit):
         'co_ppm':       co,
         'speed_pct':    unit.last_speed_pct,
         'is_tripped':   unit.last_tripped,
-        'fire_alarm':   unit.last_fire_alarm,
+        'fire_alarm':   unit.last_fire_alarm,       #bổ sung vào hàm định dạng dữ liệu quạt
         'mode':         unit.control_mode,
         'manual_speed': unit.manual_speed,
         'online':       online,

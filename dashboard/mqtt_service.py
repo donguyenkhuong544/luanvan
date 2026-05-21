@@ -1,4 +1,5 @@
 """
+Xử lý bản tin MQTT, chạy luồng ngầm
 MQTT Client Service – FanJet BMS
 Quản lý kết nối MQTT client (subscriber + publisher).
 Hoàn toàn tách biệt với việc host MQTT broker.
@@ -140,8 +141,7 @@ def _on_message(client, userdata, msg):
         except FanUnit.DoesNotExist:
             logger.debug(f'[MQTT Client] Unknown unit_id: {unit_id}')
             return
-
-        # Save to history
+        #lưu vào Database , khi có báo cháy hàm sẽ trích xuất giá trị fire_alarm cũng như các giá trị khác để lưu vào database
         FanTelemetry.objects.create(
             fan_unit=unit,
             co_ppm=co_ppm,

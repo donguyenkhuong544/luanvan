@@ -52,8 +52,6 @@ class SimFanUnit:
             
         if self.fire_alarm:
             self.speed = 100
-        if self.Linh_love:
-            self.speed = 100
     def _auto_speed(self):
         pts = sorted(self.profile, key=lambda p: p["co"])
         co = self.co_ppm
