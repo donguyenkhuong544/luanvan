@@ -15,6 +15,7 @@ urlpatterns = [
     path('chatbot/',                   views.chatbot_view,     name='chatbot'),
     path('analytics/',                 views.analytics_view,   name='analytics'),
     path('settings/',                  views.settings_view,    name='settings'),
+    path('approvals/',                 views.approvals_view,   name='approvals'),
 
     # ── JSON API ─────────────────────────────────────────────────
     path('api/telemetry/',                         views.api_telemetry,      name='api_telemetry'),
@@ -24,6 +25,9 @@ urlpatterns = [
     path('api/chat/',                              views.api_chat,           name='api_chat'),
     path('api/ollama/models/',                     views.api_ollama_models,  name='api_ollama_models'),
     path('api/mqtt-log/',                          views.api_mqtt_log,       name='api_mqtt_log'),
+    path('api/pending-requests/',                  views.api_pending_requests, name='api_pending_requests'),
+    path('api/pending-requests/<int:req_id>/approve/', views.api_approve_request, name='api_approve_request'),
+    path('api/pending-requests/<int:req_id>/reject/', views.api_reject_request, name='api_reject_request'),
 
     # ── MQTT Client API ──────────────────────────────────────────
     path('api/mqtt/status/',       views.api_mqtt_status,      name='api_mqtt_status'),

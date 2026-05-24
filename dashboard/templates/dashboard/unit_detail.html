@@ -394,8 +394,8 @@ function saveProfile() {
   }).then(function(r){ return r.json(); }).then(function(d){
     btn.disabled = false;
     btn.textContent = 'Lưu biểu đồ';
-    fb.textContent = d.ok ? '✓ Đã lưu & gửi MQTT' : '✗ Lỗi: '+d.error;
-    fb.style.color = d.ok ? 'var(--green)' : 'var(--red)';
+    fb.textContent = d.ok ? (d.pending_approval ? '⏳ Đã gửi yêu cầu, chờ Admin duyệt' : '✓ Đã lưu & gửi MQTT') : '✗ Lỗi: '+d.error;
+    fb.style.color = d.ok ? (d.pending_approval ? 'var(--amber)' : 'var(--green)') : 'var(--red)';
     setTimeout(function(){ fb.textContent=''; }, 3000);
   });
 }
@@ -422,8 +422,8 @@ function ctrlSend() {
     body: JSON.stringify({mode:ctrlMode, speed:speed})
   }).then(function(r){ return r.json(); }).then(function(d){
     btn.disabled = false; btn.textContent = 'Gửi lệnh MQTT ↗';
-    fb.textContent = d.ok ? '✓ Đã gửi ('+ctrlMode+', '+speed+'%)' : '✗ Lỗi: '+d.error;
-    fb.style.color = d.ok ? 'var(--green)' : 'var(--red)';
+    fb.textContent = d.ok ? (d.pending_approval ? '⏳ Đã gửi yêu cầu, chờ Admin duyệt' : '✓ Đã gửi ('+ctrlMode+', '+speed+'%)') : '✗ Lỗi: '+d.error;
+    fb.style.color = d.ok ? (d.pending_approval ? 'var(--amber)' : 'var(--green)') : 'var(--red)';
     setTimeout(function(){ fb.textContent=''; }, 3000);
   });
 }

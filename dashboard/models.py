@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 #Lưu trữ và xử lý dữ liệu tại Backend
 class MQTTConfig(models.Model):
@@ -146,3 +147,25 @@ class FanTelemetry(models.Model):
 
     def __str__(self):
         return f'{self.fan_unit.unit_id} @ {self.timestamp:%H:%M:%S}'
+
+class CommandRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Đang chờ'),
+        ('approved', 'Đã duyệt'),
+        ('rejected', 'Từ chối'),
+    ]
+    fan_unit = models.ForeignKey(FanUnit, on_delete=models.CASCADE, related_name='command_requests')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='command_requests')
+    command_type = models.CharField('Loại lệnh', max_length=20) # 'control' or 'profile'
+    payload = models.JSONField('Dữ liệu lệnh')
+    status = models.CharField('Trạng thái', max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Yêu cầu điều khiển'
+        verbose_name_plural = 'Danh sách yêu cầu điều khiển'
+
+    def __str__(self):
+        return f'{self.user.username} - {self.command_type} - {self.status}'

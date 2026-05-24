@@ -576,7 +576,7 @@
       </svg>
     </div>
     <div>
-      <div class="kpi-val" style="color:var(--green)">{{ running }}</div>
+      <div class="kpi-val" id="kpi-running" style="color:var(--green)">{{ running }}</div>
       <div class="kpi-lbl">Đang chạy</div>
     </div>
   </div>
@@ -589,7 +589,7 @@
       </svg>
     </div>
     <div>
-      <div class="kpi-val" style="color:var(--red)">{{ faults }}</div>
+      <div class="kpi-val" id="kpi-faults" style="color:var(--red)">{{ faults }}</div>
       <div class="kpi-lbl">Trip / Lỗi</div>
     </div>
   </div>
@@ -666,12 +666,11 @@
 
     <!-- Fan visual + speed -->
     <div class="uc-mid">
-      <div class="fan-anim-wrap {% if unit.last_speed_pct and unit.last_speed_pct > 0 %}running
-                                {% elif unit.last_tripped %}trip{% else %}off{% endif %}"
+      <div class="fan-anim-wrap {% if online %}{% if unit.last_speed_pct and unit.last_speed_pct > 0 %}running{% elif unit.last_tripped %}trip{% else %}off{% endif %}{% else %}off{% endif %}"
         id="fanwrap-{{ unit.unit_id }}">
         <svg class="fan-svg" viewBox="0 0 60 60" aria-hidden="true">
           <g class="fan-blades" id="fanblades-{{ unit.unit_id }}"
-            style="color:{% if unit.last_tripped %}#f87171{% elif unit.last_speed_pct and unit.last_speed_pct > 0 %}#38bdf8{% else %}#475569{% endif %}">
+            style="color:{% if not online %}#475569{% elif unit.last_tripped %}#f87171{% elif unit.last_speed_pct and unit.last_speed_pct > 0 %}#38bdf8{% else %}#475569{% endif %}">
             <ellipse cx="30" cy="14" rx="6" ry="14" fill="currentColor" opacity=".85" />
             <ellipse cx="30" cy="14" rx="6" ry="14" fill="currentColor" opacity=".85" transform="rotate(120 30 30)" />
             <ellipse cx="30" cy="14" rx="6" ry="14" fill="currentColor" opacity=".85" transform="rotate(240 30 30)" />
@@ -699,11 +698,11 @@
 
         <!-- Normal Speed Container -->
         <div class="speed-normal-wrap" id="speed-normal-wrap-{{ unit.unit_id }}" style="display: {% if not unit.last_tripped and not unit.last_fire_alarm %}block{% else %}none{% endif %};">
-          <div class="speed-num" id="spd-val-{{ unit.unit_id }}">{{ unit.last_speed_pct|default:"0" }}<span
+          <div class="speed-num" id="spd-val-{{ unit.unit_id }}">{% if online %}{{ unit.last_speed_pct|default:"0" }}{% else %}0{% endif %}<span
               style="font-size:13px;font-weight:500;color:var(--txt-2)">%</span></div>
           <div class="speed-unit">Tốc độ</div>
           <div class="speed-bar-wrap">
-            <div class="speed-bar" id="spd-bar-{{ unit.unit_id }}" style="width:{{ unit.last_speed_pct|default:0 }}%">
+            <div class="speed-bar" id="spd-bar-{{ unit.unit_id }}" style="width:{% if online %}{{ unit.last_speed_pct|default:0 }}{% else %}0{% endif %}%">
             </div>
           </div>
         </div>
@@ -788,7 +787,7 @@
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
       body: JSON.stringify({ mode: 'manual', speed: speed })
     }).then(function (r) { return r.json(); }).then(function (d) {
-      btn.textContent = d.ok ? '✓ Đã gửi' : '✗ Lỗi';
+      btn.textContent = d.ok ? (d.pending_approval ? '⏳ Chờ duyệt' : '✓ Đã gửi') : '✗ Lỗi';
       setTimeout(function () { btn.disabled = false; btn.textContent = 'Gửi lệnh ↗'; }, 1800);
     }).catch(function () {
       btn.disabled = false; btn.textContent = 'Gửi lệnh ↗';
@@ -858,19 +857,33 @@
         
         // Update speed inside the container
         var spdEl = document.getElementById('spd-val-' + uid);
-        if (spdEl) spdEl.innerHTML = (spd || 0) + '<span style="font-size:13px;font-weight:500;color:var(--txt-2)">%</span>';
         var sbar = document.getElementById('spd-bar-' + uid);
-        if (sbar) sbar.style.width = (spd || 0) + '%';
+        if (!u.online) {
+          if (spdEl) spdEl.innerHTML = '0<span style="font-size:13px;font-weight:500;color:var(--txt-2)">%</span>';
+          if (sbar) sbar.style.width = '0%';
+        } else {
+          if (spdEl) spdEl.innerHTML = (spd || 0) + '<span style="font-size:13px;font-weight:500;color:var(--txt-2)">%</span>';
+          if (sbar) sbar.style.width = (spd || 0) + '%';
+        }
       }
 
       // Fan animation
       var wrap = document.getElementById('fanwrap-' + uid);
       var blades = document.getElementById('fanblades-' + uid);
       if (wrap && blades) {
-        var cls = u.is_tripped ? 'trip' : (spd && spd > 0 ? 'running' : 'off');
+        var cls = 'off';
+        if (u.online) {
+          cls = u.is_tripped ? 'trip' : (spd && spd > 0 ? 'running' : 'off');
+        }
         wrap.className = 'fan-anim-wrap ' + cls;
-        blades.style.color = u.is_tripped ? '#f87171' : (spd && spd > 0 ? '#38bdf8' : '#475569');
-        blades.style.animation = (!u.is_tripped && spd && spd > 0) ? '' : 'none';
+        
+        if (!u.online) {
+          blades.style.color = '#475569';
+          blades.style.animation = 'none';
+        } else {
+          blades.style.color = u.is_tripped ? '#f87171' : (spd && spd > 0 ? '#38bdf8' : '#475569');
+          blades.style.animation = (!u.is_tripped && spd && spd > 0) ? '' : 'none';
+        }
       }
       // Card border
       card.className = card.className.replace(/co-(alarm|warning|normal|offline)/g, '');
@@ -882,14 +895,22 @@
       var banner = document.getElementById('fire-banner-' + uid);
       if (banner) banner.classList.toggle('show', isFireAlarm);
       // Fire alarm fan color
-      if (wrap && blades && isFireAlarm) {
+      if (wrap && blades && isFireAlarm && u.online) {
         wrap.className = 'fan-anim-wrap running';
         blades.style.color = '#ef4444';
         blades.style.animation = '';
       }
     });
-    // Update fire KPI
-    var fireCount = data.units.filter(function (u) { return !!u.fire_alarm; }).length;
+    // Update KPIs
+    var runningCount = data.units.filter(function (u) { return u.online && u.speed_pct > 0; }).length;
+    var kpiRunning = document.getElementById('kpi-running');
+    if (kpiRunning) kpiRunning.textContent = runningCount;
+    
+    var faultCount = data.units.filter(function (u) { return u.online && u.is_tripped; }).length;
+    var kpiFaults = document.getElementById('kpi-faults');
+    if (kpiFaults) kpiFaults.textContent = faultCount;
+
+    var fireCount = data.units.filter(function (u) { return !!u.fire_alarm && u.online; }).length;
     var kpiFire = document.getElementById('kpi-fire');
     if (kpiFire) kpiFire.textContent = fireCount;
   }

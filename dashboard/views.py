@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import FanUnitForm, MQTTConfigForm, OllamaConfigForm
-from .models import COSpeedPoint, FanTelemetry, FanUnit, MQTTConfig, OllamaConfig
+from .models import COSpeedPoint, FanTelemetry, FanUnit, MQTTConfig, OllamaConfig, CommandRequest
 from .mqtt_service import publish_command, publish_free, get_mqtt_status, reconnect_mqtt, disconnect_mqtt
 from accounts.decorators import role_required
 
@@ -61,9 +61,9 @@ def _unit_summary(unit):
 @login_required(login_url='accounts:login')
 def home_view(request):
     units = FanUnit.objects.filter(is_active=True)
-    running = sum(1 for u in units if u.last_speed_pct and u.last_speed_pct > 0)
-    faults  = sum(1 for u in units if u.last_tripped)
-    fire_alarms = sum(1 for u in units if u.last_fire_alarm)
+    running = sum(1 for u in units if u.is_online() and u.last_speed_pct and u.last_speed_pct > 0)
+    faults  = sum(1 for u in units if u.is_online() and u.last_tripped)
+    fire_alarms = sum(1 for u in units if u.is_online() and u.last_fire_alarm)
     return render(request, 'dashboard/home.html', {
         'page':        'home',
         'mqtt_config': _mqtt_cfg(),
@@ -227,25 +227,49 @@ def api_command(request, unit_id):
         data  = json.loads(request.body)
         mode  = data.get('mode', unit.control_mode)
         speed = int(data.get('speed', unit.manual_speed))
+        payload = {'mode': mode, 'speed': speed}
+
+        is_admin = request.user.is_superuser or request.user.groups.filter(name='Admin').exists()
+
+        if not is_admin:
+            CommandRequest.objects.create(
+                fan_unit=unit,
+                user=request.user,
+                command_type='control',
+                payload=payload
+            )
+            return JsonResponse({'ok': True, 'pending_approval': True, 'message': 'Đã gửi yêu cầu, chờ Admin duyệt'})
 
         FanUnit.objects.filter(pk=unit.pk).update(
             control_mode=mode, manual_speed=speed)
 
         cfg   = _mqtt_cfg()
         topic = f'{unit.get_topic_base()}/command'
-        publish_command(cfg, topic, {'mode': mode, 'speed': speed})
+        publish_command(cfg, topic, payload)
         return JsonResponse({'ok': True, 'mode': mode, 'speed': speed})
     except Exception as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
 
 
 @login_required(login_url='accounts:login')
-@role_required(['Admin'])
+@role_required(['Admin', 'Operator'])
 @require_POST
 def api_profile_save(request, unit_id):
     unit = get_object_or_404(FanUnit, unit_id=unit_id)
     try:
         points = json.loads(request.body)   # [{co_ppm, speed_pct}, …]
+
+        is_admin = request.user.is_superuser or request.user.groups.filter(name='Admin').exists()
+
+        if not is_admin:
+            CommandRequest.objects.create(
+                fan_unit=unit,
+                user=request.user,
+                command_type='profile',
+                payload={'points': points}
+            )
+            return JsonResponse({'ok': True, 'pending_approval': True, 'count': len(points)})
+
         COSpeedPoint.objects.filter(fan_unit=unit).delete()
         for i, p in enumerate(points):
             COSpeedPoint.objects.create(
@@ -444,7 +468,7 @@ def api_mqtt_publish(request):
 
 
 # ═══════════════════════════════════════════════════
-# PERFORMANCE MONITOR API
+# TÍNH NĂNG PHÂN QUYỀN
 # ═══════════════════════════════════════════════════
 
 @login_required
@@ -472,3 +496,71 @@ def api_perf_status(request):
     """GET: lấy snapshot CPU/RAM hiện tại."""
     from . import perf_monitor
     return JsonResponse(perf_monitor.get_snapshot())
+
+@login_required(login_url='accounts:login')
+@role_required(['Admin'])
+def approvals_view(request):
+    return render(request, 'dashboard/approvals.html', {
+        'page': 'approvals', 'mqtt_config': _mqtt_cfg(),
+    })
+
+@login_required(login_url='accounts:login')
+@role_required(['Admin'])
+def api_pending_requests(request):
+    reqs = CommandRequest.objects.filter(status='pending').select_related('fan_unit', 'user')
+    data = [{
+        'id': r.id,
+        'unit_id': r.fan_unit.unit_id,
+        'unit_name': r.fan_unit.name,
+        'user': r.user.get_full_name() or r.user.username,
+        'type': r.command_type,
+        'payload': r.payload,
+        'created_at': r.created_at.isoformat()
+    } for r in reqs]
+    return JsonResponse({'ok': True, 'requests': data})
+
+@login_required(login_url='accounts:login')
+@role_required(['Admin'])
+@require_POST
+def api_approve_request(request, req_id):
+    req = get_object_or_404(CommandRequest, id=req_id, status='pending')
+    unit = req.fan_unit
+    try:
+        if req.command_type == 'control':
+            mode = req.payload.get('mode')
+            speed = req.payload.get('speed')
+            FanUnit.objects.filter(pk=unit.pk).update(control_mode=mode, manual_speed=speed)
+            cfg = _mqtt_cfg()
+            topic = f'{unit.get_topic_base()}/command'
+            publish_command(cfg, topic, {'mode': mode, 'speed': speed})
+        elif req.command_type == 'profile':
+            points = req.payload.get('points', [])
+            COSpeedPoint.objects.filter(fan_unit=unit).delete()
+            for i, p in enumerate(points):
+                COSpeedPoint.objects.create(
+                    fan_unit=unit,
+                    co_ppm=float(p['co_ppm']),
+                    speed_pct=int(p['speed_pct']),
+                    order=i,
+                )
+            cfg = _mqtt_cfg()
+            topic = f'{unit.get_topic_base()}/profile'
+            payload = {'profile': [{'co': p['co_ppm'], 'speed': p['speed_pct']} for p in points]}
+            publish_command(cfg, topic, payload)
+            
+        req.status = 'approved'
+        req.resolved_at = timezone.now()
+        req.save()
+        return JsonResponse({'ok': True})
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+
+@login_required(login_url='accounts:login')
+@role_required(['Admin'])
+@require_POST
+def api_reject_request(request, req_id):
+    req = get_object_or_404(CommandRequest, id=req_id, status='pending')
+    req.status = 'rejected'
+    req.resolved_at = timezone.now()
+    req.save()
+    return JsonResponse({'ok': True})

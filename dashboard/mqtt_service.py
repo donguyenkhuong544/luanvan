@@ -127,7 +127,7 @@ def _on_message(client, userdata, msg):
         mode       = str(payload.get('mode', 'auto'))
         fire_alarm = bool(payload.get('fire_alarm', False))
 
-        # Gateway 4G signal info (optional fields from ESP32)
+        # tín hiệu gateway 4G, kiểm tra xem có lỗi không
         rssi       = payload.get('rssi', None)
         carrier    = str(payload.get('carrier', ''))
         signal_lbl = str(payload.get('signal', ''))
