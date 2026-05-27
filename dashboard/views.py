@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import FanUnitForm, MQTTConfigForm, OllamaConfigForm
-from .models import COSpeedPoint, FanTelemetry, FanUnit, MQTTConfig, OllamaConfig, CommandRequest
+from .models import COSpeedPoint, FanTelemetry, FanUnit, MQTTConfig, OllamaConfig, CommandRequest, SimulatedCOSensor
 from .mqtt_service import publish_command, publish_free, get_mqtt_status, reconnect_mqtt, disconnect_mqtt
 from accounts.decorators import role_required
 
@@ -152,6 +152,14 @@ def analytics_view(request):
     units = FanUnit.objects.filter(is_active=True)
     return render(request, 'dashboard/analytics.html', {
         'page': 'analytics', 'mqtt_config': _mqtt_cfg(), 'units': units,
+    })
+
+
+@login_required(login_url='accounts:login')
+def history_view(request):
+    units = FanUnit.objects.all()
+    return render(request, 'dashboard/history.html', {
+        'page': 'history', 'mqtt_config': _mqtt_cfg(), 'units': units,
     })
 
 
@@ -341,13 +349,22 @@ def api_chat(request):
                 f"  + Thống kê 24h qua: CO cao nhất={max_co_24h:.1f}ppm, Số lần sự kiện lỗi={trips_24h}."
             )
 
+        # Context for Simulated CO Sensors
+        active_sensors = SimulatedCOSensor.objects.filter(is_active=True)
+        if active_sensors.exists():
+            sensor_ctx = ["- Các cảm biến CO giả lập đang kích hoạt (Giới hạn hoạt động tối đa: 18000 giờ):"]
+            for s in active_sensors:
+                sensor_ctx.append(f"  + {s.sensor_id} ({s.name}, {s.description}): {s.operating_hours:.1f} giờ")
+            ctx.extend(sensor_ctx)
+
         expert_prompt = (
             "Bạn là chuyên gia chẩn đoán AI của Hệ thống Quản trị Tòa nhà FanJet. "
             "Nhiệm vụ của bạn là phân tích dữ liệu, đánh giá độ an toàn, và đưa ra lời khuyên bảo trì hoặc điều khiển cho kỹ thuật viên. "
             "Hãy trả lời ngắn gọn, súc tích, chuyên nghiệp bằng tiếng Việt và dùng Markdown để trình bày. "
-            "Nhấn mạnh vào các thông số bất thường (như lỗi TRIP hoặc CO cực cao).\n\n"
+            "Nhấn mạnh vào các thông số bất thường (như lỗi TRIP hoặc CO cực cao). "
+            "Đối với cảm biến CO: Nếu số giờ hoạt động >= 9000 giờ (50%), hãy khuyến nghị bảo trì quét bụi lau chùi bề mặt vì tầng hầm khói bụi nhiều. Nếu >= 18000 giờ, khuyến nghị thay thế ngay lập tức.\n\n"
             "Dữ liệu thực tế và lịch sử 24h của hệ thống quạt hiện tại:\n"
-            + ('\n'.join(ctx) if ctx else '(Chưa có bộ quạt nào)')
+            + ('\n'.join(ctx) if ctx else '(Chưa có dữ liệu nào)')
         )
 
         sys_msg = {'role': 'system', 'content': f"{ollama.system_prompt}\n\n{expert_prompt}"}
@@ -522,6 +539,9 @@ def api_pending_requests(request):
 @login_required(login_url='accounts:login')
 @role_required(['Admin'])
 @require_POST
+
+# Dựng API đứng trung gian giao tiếp với MQTT lấy dữ liệu 
+
 def api_approve_request(request, req_id):
     req = get_object_or_404(CommandRequest, id=req_id, status='pending')
     unit = req.fan_unit
@@ -564,3 +584,78 @@ def api_reject_request(request, req_id):
     req.resolved_at = timezone.now()
     req.save()
     return JsonResponse({'ok': True})
+
+
+@login_required(login_url='accounts:login')
+def api_get_sensors(request):
+    sensors = SimulatedCOSensor.objects.all()
+    data = [{
+        'sensor_id': s.sensor_id,
+        'name': s.name,
+        'operating_hours': s.operating_hours,
+        'is_active': s.is_active,
+        'description': s.description,
+    } for s in sensors]
+    return JsonResponse({'ok': True, 'sensors': data})
+
+
+@login_required(login_url='accounts:login')
+@role_required(['Admin'])
+@require_POST
+def api_update_sensors(request):
+    try:
+        data = json.loads(request.body)
+        sensors_data = data.get('sensors', [])
+        for item in sensors_data:
+            SimulatedCOSensor.objects.filter(sensor_id=item['sensor_id']).update(
+                operating_hours=float(item.get('operating_hours', 0)),
+                is_active=bool(item.get('is_active', False))
+            )
+        return JsonResponse({'ok': True, 'message': 'Đã cập nhật cảm biến giả lập'})
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+
+
+@login_required(login_url='accounts:login')
+def api_history_table(request):
+    unit_id = request.GET.get('unit_id', 'all')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    status_filter = request.GET.get('status', 'all')
+
+    qs = FanTelemetry.objects.select_related('fan_unit').all()
+    
+    if unit_id != 'all':
+        qs = qs.filter(fan_unit__unit_id=unit_id)
+        
+    if date_from:
+        from django.utils.dateparse import parse_datetime
+        df = parse_datetime(date_from)
+        if df: qs = qs.filter(timestamp__gte=df)
+        
+    if date_to:
+        from django.utils.dateparse import parse_datetime
+        dt = parse_datetime(date_to)
+        if dt: qs = qs.filter(timestamp__lte=dt)
+
+    if status_filter == 'fault':
+        qs = qs.filter(is_tripped=True)
+    elif status_filter == 'overload':
+        qs = qs.filter(co_ppm__gte=25) # Using 25 as general warning threshold
+    elif status_filter == 'normal':
+        qs = qs.filter(is_tripped=False, co_ppm__lt=25)
+
+    qs = qs.order_by('-timestamp')[:500] # Limit to 500 rows for UI performance
+
+    data = [{
+        'timestamp': r.timestamp.isoformat(),
+        'unit_id': r.fan_unit.unit_id,
+        'unit_name': r.fan_unit.name,
+        'co_ppm': r.co_ppm,
+        'speed_pct': r.speed_pct,
+        'is_tripped': r.is_tripped,
+        'mode': r.mode
+    } for r in qs]
+    
+    return JsonResponse({'ok': True, 'data': data})
+

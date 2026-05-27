@@ -86,6 +86,7 @@
   <button class="tab-btn active" data-tab="mqtt" role="tab">🔌 MQTT Client</button>
   <button class="tab-btn" data-tab="ollama" role="tab">🤖 AI Ollama</button>
   <button class="tab-btn" data-tab="perf" role="tab">📊 Hiệu năng</button>
+  <button class="tab-btn" data-tab="sensors" role="tab">📡 Giả lập CO</button>
 </div>
 
 <!-- ─── MQTT Client Tab ──────────────────────────────────────────────── -->
@@ -351,6 +352,42 @@
   </div>
 </div>
 
+<!-- ─── CO Sensors Simulation Tab ─────────────────────────────────────── -->
+<div class="tab-panel" id="tab-sensors">
+  <div class="s-card" style="max-width:900px">
+    <div class="s-head">
+      <div class="s-icon" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">
+        <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:13.5px;font-weight:700">Giả lập Cảm biến CO</div>
+        <div style="font-size:12px;color:var(--txt-2)">Nhập số giờ hoạt động (max 18000h) và bật/tắt giả lập</div>
+      </div>
+    </div>
+    <div class="s-body">
+      <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+        <button type="button" class="btn-save" id="btn-save-sensors">💾 Lưu thay đổi</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; text-align:left; font-size:13px;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border); color:var(--txt-2);">
+              <th style="padding:10px;">Mã</th>
+              <th style="padding:10px;">Tên cảm biến</th>
+              <th style="padding:10px;">Vị trí</th>
+              <th style="padding:10px; width:200px;">Số giờ HĐ (0 - 18000)</th>
+              <th style="padding:10px; text-align:center;">Kích hoạt</th>
+            </tr>
+          </thead>
+          <tbody id="sensors-tbody">
+            <tr><td colspan="5" style="text-align:center; padding:20px;">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_scripts %}
@@ -554,5 +591,78 @@ document.getElementById('btn-perf-toggle').addEventListener('click', function(){
 
 // Check initial perf status
 fetchPerfSnapshot();
+
+// ── CO Sensors Simulation ────────────────────────────
+function loadSensors() {
+  fetch('/dashboard/api/co-sensors/')
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d.ok) {
+      var tbody = document.getElementById('sensors-tbody');
+      tbody.innerHTML = d.sensors.map(function(s) {
+        return '<tr style="border-bottom:1px solid var(--border);">' +
+          '<td style="padding:10px; font-family:\'JetBrains Mono\',monospace; font-weight:600;">' + s.sensor_id + '</td>' +
+          '<td style="padding:10px;">' + s.name + '</td>' +
+          '<td style="padding:10px; color:var(--txt-2);">' + s.description + '</td>' +
+          '<td style="padding:10px;">' +
+            '<input type="number" class="sensor-hours" data-id="' + s.sensor_id + '" value="' + s.operating_hours + '" min="0" max="18000" style="width:100%; padding:6px 10px; border:1px solid var(--border-strong); border-radius:6px; background:var(--bg); color:var(--txt); outline:none;">' +
+          '</td>' +
+          '<td style="padding:10px; text-align:center;">' +
+            '<label class="ts" style="display:inline-block;"><input type="checkbox" class="sensor-active" data-id="' + s.sensor_id + '" ' + (s.is_active ? 'checked' : '') + '/><span class="ts-sl"></span></label>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    }
+  });
+}
+
+document.getElementById('btn-save-sensors').addEventListener('click', function() {
+  var btn = this;
+  btn.disabled = true;
+  btn.textContent = 'Đang lưu...';
+  
+  var sensors = [];
+  document.querySelectorAll('.sensor-hours').forEach(function(inp) {
+    var sid = inp.dataset.id;
+    var activeCheckbox = document.querySelector('.sensor-active[data-id="'+sid+'"]');
+    sensors.push({
+      sensor_id: sid,
+      operating_hours: parseFloat(inp.value) || 0,
+      is_active: activeCheckbox ? activeCheckbox.checked : false
+    });
+  });
+  
+  fetch('/dashboard/api/co-sensors/update/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrf(),
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: JSON.stringify({sensors: sensors})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d.ok) {
+      btn.style.background = 'var(--green)';
+      btn.textContent = '✓ Đã lưu';
+    } else {
+      btn.style.background = 'var(--red)';
+      btn.textContent = '✗ Lỗi';
+    }
+    setTimeout(function() {
+      btn.style.background = '';
+      btn.textContent = '💾 Lưu thay đổi';
+      btn.disabled = false;
+    }, 2000);
+  })
+  .catch(function(e) {
+    btn.textContent = 'Lỗi!';
+    btn.disabled = false;
+  });
+});
+
+loadSensors();
+
 </script>
 {% endblock %}

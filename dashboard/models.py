@@ -169,3 +169,20 @@ class CommandRequest(models.Model):
 
     def __str__(self):
         return f'{self.user.username} - {self.command_type} - {self.status}'
+
+
+class SimulatedCOSensor(models.Model):
+    sensor_id = models.CharField('Mã cảm biến', max_length=20, unique=True)
+    name = models.CharField('Tên cảm biến', max_length=100)
+    zone = models.CharField('Khu vực', max_length=50, default='B1')
+    operating_hours = models.FloatField('Số giờ hoạt động', default=0)
+    is_active = models.BooleanField('Kích hoạt', default=False)
+    description = models.CharField('Mô tả/Vị trí', max_length=200, blank=True)
+
+    class Meta:
+        ordering = ['sensor_id']
+        verbose_name = 'Cảm biến CO Giả lập'
+        verbose_name_plural = 'Danh sách cảm biến CO'
+
+    def __str__(self):
+        return f'{self.sensor_id} - {self.name}'

@@ -303,6 +303,7 @@
     transform-origin: 30px 30px;
   }
 
+  /* Hiệu ứng quay của quạt khi chạy (icon)*/
   .running .fan-blades {
     animation: spin 1.2s linear infinite;
   }
@@ -510,9 +511,12 @@
   }
 
   @keyframes flash-banner {
-    0%, 100% {
+
+    0%,
+    100% {
       background: linear-gradient(90deg, #ef4444, #f97316);
     }
+
     50% {
       background: linear-gradient(90deg, #b91c1c, #ea580c);
     }
@@ -539,10 +543,13 @@
   }
 
   @keyframes pulse-fire {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: scale(1);
       box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
     }
+
     50% {
       transform: scale(1.03);
       box-shadow: 0 0 6px 2px rgba(239, 68, 68, 0.2);
@@ -666,7 +673,8 @@
 
     <!-- Fan visual + speed -->
     <div class="uc-mid">
-      <div class="fan-anim-wrap {% if online %}{% if unit.last_speed_pct and unit.last_speed_pct > 0 %}running{% elif unit.last_tripped %}trip{% else %}off{% endif %}{% else %}off{% endif %}"
+      <div
+        class="fan-anim-wrap {% if online %}{% if unit.last_speed_pct and unit.last_speed_pct > 0 %}running{% elif unit.last_tripped %}trip{% else %}off{% endif %}{% else %}off{% endif %}"
         id="fanwrap-{{ unit.unit_id }}">
         <svg class="fan-svg" viewBox="0 0 60 60" aria-hidden="true">
           <g class="fan-blades" id="fanblades-{{ unit.unit_id }}"
@@ -681,7 +689,8 @@
       </div>
       <div class="speed-info" id="speed-info-{{ unit.unit_id }}">
         <!-- Trip Badge -->
-        <div class="trip-badge" id="trip-badge-{{ unit.unit_id }}" style="display: {% if unit.last_tripped %}inline-flex{% else %}none{% endif %};">
+        <div class="trip-badge" id="trip-badge-{{ unit.unit_id }}"
+          style="display: {% if unit.last_tripped %}inline-flex{% else %}none{% endif %};">
           <svg viewBox="0 0 24 24">
             <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             <line x1="12" y1="9" x2="12" y2="13" />
@@ -690,24 +699,30 @@
         </div>
 
         <!-- Fire Badge -->
-        <div class="fire-badge" id="fire-badge-{{ unit.unit_id }}" style="display: {% if not unit.last_tripped and unit.last_fire_alarm %}inline-flex{% else %}none{% endif %};">
+        <div class="fire-badge" id="fire-badge-{{ unit.unit_id }}"
+          style="display: {% if not unit.last_tripped and unit.last_fire_alarm %}inline-flex{% else %}none{% endif %};">
           <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 23c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm0-20C7.6 3 4.2 7.3 5.1 11.7l1.4 7.3h11l1.4-7.3C19.8 7.3 16.4 3 12 3z" />
+            <path
+              d="M12 23c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm0-20C7.6 3 4.2 7.3 5.1 11.7l1.4 7.3h11l1.4-7.3C19.8 7.3 16.4 3 12 3z" />
           </svg> FIRE 100%
         </div>
 
         <!-- Normal Speed Container -->
-        <div class="speed-normal-wrap" id="speed-normal-wrap-{{ unit.unit_id }}" style="display: {% if not unit.last_tripped and not unit.last_fire_alarm %}block{% else %}none{% endif %};">
-          <div class="speed-num" id="spd-val-{{ unit.unit_id }}">{% if online %}{{ unit.last_speed_pct|default:"0" }}{% else %}0{% endif %}<span
-              style="font-size:13px;font-weight:500;color:var(--txt-2)">%</span></div>
+        <div class="speed-normal-wrap" id="speed-normal-wrap-{{ unit.unit_id }}"
+          style="display: {% if not unit.last_tripped and not unit.last_fire_alarm %}block{% else %}none{% endif %};">
+          <div class="speed-num" id="spd-val-{{ unit.unit_id }}">{% if online %}{{ unit.last_speed_pct|default:"0" }}{%
+            else %}0{% endif %}<span style="font-size:13px;font-weight:500;color:var(--txt-2)">%</span></div>
           <div class="speed-unit">Tốc độ</div>
           <div class="speed-bar-wrap">
-            <div class="speed-bar" id="spd-bar-{{ unit.unit_id }}" style="width:{% if online %}{{ unit.last_speed_pct|default:0 }}{% else %}0{% endif %}%">
+            <div class="speed-bar" id="spd-bar-{{ unit.unit_id }}"
+              style="width:{% if online %}{{ unit.last_speed_pct|default:0 }}{% else %}0{% endif %}%">
             </div>
           </div>
         </div>
 
-        <div id="offline-status-{{ unit.unit_id }}" style="font-size:10px;color:var(--txt-3);margin-top:4px; display: {% if not online %}block{% else %}none{% endif %};">● Offline</div>
+        <div id="offline-status-{{ unit.unit_id }}"
+          style="font-size:10px;color:var(--txt-3);margin-top:4px; display: {% if not online %}block{% else %}none{% endif %};">
+          ● Offline</div>
       </div>
     </div>
 
@@ -760,7 +775,7 @@
   {% for unit in units %}
   UNIT_DATA['{{ unit.unit_id }}'] = {
     co_warn: {{ unit.co_warn_ppm }},
-    co_alarm: {{ unit.co_alarm_ppm }},
+  co_alarm: { { unit.co_alarm_ppm } },
   };
   {% endfor %}
 
@@ -854,7 +869,7 @@
         if (tripEl) tripEl.style.display = 'none';
         if (fireBadgeEl) fireBadgeEl.style.display = 'none';
         if (speedWrapEl) speedWrapEl.style.display = 'block';
-        
+
         // Update speed inside the container
         var spdEl = document.getElementById('spd-val-' + uid);
         var sbar = document.getElementById('spd-bar-' + uid);
@@ -867,7 +882,7 @@
         }
       }
 
-      // Fan animation
+      // Hiệu ứng quạt
       var wrap = document.getElementById('fanwrap-' + uid);
       var blades = document.getElementById('fanblades-' + uid);
       if (wrap && blades) {
@@ -876,7 +891,7 @@
           cls = u.is_tripped ? 'trip' : (spd && spd > 0 ? 'running' : 'off');
         }
         wrap.className = 'fan-anim-wrap ' + cls;
-        
+
         if (!u.online) {
           blades.style.color = '#475569';
           blades.style.animation = 'none';
@@ -905,7 +920,7 @@
     var runningCount = data.units.filter(function (u) { return u.online && u.speed_pct > 0; }).length;
     var kpiRunning = document.getElementById('kpi-running');
     if (kpiRunning) kpiRunning.textContent = runningCount;
-    
+
     var faultCount = data.units.filter(function (u) { return u.online && u.is_tripped; }).length;
     var kpiFaults = document.getElementById('kpi-faults');
     if (kpiFaults) kpiFaults.textContent = faultCount;
@@ -914,7 +929,7 @@
     var kpiFire = document.getElementById('kpi-fire');
     if (kpiFire) kpiFire.textContent = fireCount;
   }
-
+  // Gọi API mỗi vài giây để cập nhật số liệu
   setInterval(function () {
     fetch('/dashboard/api/telemetry/').then(function (r) { return r.json(); }).then(updateCards).catch(function () { });
   }, 5000);

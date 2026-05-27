@@ -1,0 +1,110 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Tra cứu lịch sử{% endblock %}
+{% block page_title %}Tra cứu lịch sử{% endblock %}
+
+{% block content %}
+<div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
+  <div style="font-size:13.5px;font-weight:700;margin-bottom:12px;">Bộ lọc dữ liệu</div>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+    <div style="flex:1; min-width:150px;">
+      <label style="font-size:11px;font-weight:700;color:var(--txt-2);display:block;margin-bottom:4px;">Bộ quạt</label>
+      <select id="filter-unit" style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--txt);">
+        <option value="all">Tất cả</option>
+        {% for u in units %}
+        <option value="{{ u.unit_id }}">{{ u.unit_id }} - {{ u.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:1; min-width:150px;">
+      <label style="font-size:11px;font-weight:700;color:var(--txt-2);display:block;margin-bottom:4px;">Từ thời gian</label>
+      <input type="datetime-local" id="filter-date-from" style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--txt);">
+    </div>
+    <div style="flex:1; min-width:150px;">
+      <label style="font-size:11px;font-weight:700;color:var(--txt-2);display:block;margin-bottom:4px;">Đến thời gian</label>
+      <input type="datetime-local" id="filter-date-to" style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--txt);">
+    </div>
+    <div style="flex:1; min-width:150px;">
+      <label style="font-size:11px;font-weight:700;color:var(--txt-2);display:block;margin-bottom:4px;">Trạng thái</label>
+      <select id="filter-status" style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--txt);">
+        <option value="all">Tất cả</option>
+        <option value="fault">Lỗi (Trip)</option>
+        <option value="overload">Quá tải (CO cao)</option>
+        <option value="normal">Bình thường</option>
+      </select>
+    </div>
+    <div>
+      <button id="btn-load-history" style="padding:9px 16px;background:var(--cyan);color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">Lọc dữ liệu</button>
+    </div>
+  </div>
+</div>
+
+<div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+  <div style="padding:12px 18px;border-bottom:1px solid var(--border);background:var(--bg-hover);display:flex;justify-content:space-between;align-items:center;">
+    <div style="font-size:13.5px;font-weight:700;">Bảng dữ liệu lịch sử (500 bản ghi gần nhất)</div>
+  </div>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border);color:var(--txt-2);">
+          <th style="padding:12px;">Thời gian</th>
+          <th style="padding:12px;">Mã quạt</th>
+          <th style="padding:12px;">CO (ppm)</th>
+          <th style="padding:12px;">Tốc độ</th>
+          <th style="padding:12px;">Chế độ</th>
+          <th style="padding:12px;">Trạng thái</th>
+        </tr>
+      </thead>
+      <tbody id="history-tbody">
+        <tr><td colspan="6" style="text-align:center;padding:20px;">Nhấn "Lọc dữ liệu" để xem lịch sử...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('btn-load-history').addEventListener('click', function() {
+  var unitId = document.getElementById('filter-unit').value;
+  var dFrom = document.getElementById('filter-date-from').value;
+  var dTo = document.getElementById('filter-date-to').value;
+  var status = document.getElementById('filter-status').value;
+  var url = '/dashboard/api/analytics/history-table/?unit_id=' + unitId + '&status=' + status;
+  if(dFrom) url += '&date_from=' + encodeURIComponent(dFrom);
+  if(dTo) url += '&date_to=' + encodeURIComponent(dTo);
+  
+  var btn = this;
+  btn.textContent = 'Đang lọc...';
+  btn.disabled = true;
+
+  document.getElementById('history-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Đang tải...</td></tr>';
+  fetch(url)
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    btn.textContent = 'Lọc dữ liệu';
+    btn.disabled = false;
+    if(d.ok && d.data.length > 0) {
+      document.getElementById('history-tbody').innerHTML = d.data.map(function(row) {
+        var dt = new Date(row.timestamp).toLocaleString('vi-VN');
+        var st = row.is_tripped ? '<span style="color:var(--red);font-weight:bold;">Lỗi (Trip)</span>' : 
+                 (row.co_ppm >= 25 ? '<span style="color:var(--amber);font-weight:bold;">Cảnh báo CO</span>' : '<span style="color:var(--green);">Bình thường</span>');
+        return '<tr style="border-bottom:1px solid var(--border);">' +
+          '<td style="padding:10px;">' + dt + '</td>' +
+          '<td style="padding:10px;font-family:\'JetBrains Mono\',monospace;">' + row.unit_id + '</td>' +
+          '<td style="padding:10px;">' + row.co_ppm.toFixed(1) + '</td>' +
+          '<td style="padding:10px;">' + row.speed_pct + '%</td>' +
+          '<td style="padding:10px;">' + row.mode.toUpperCase() + '</td>' +
+          '<td style="padding:10px;">' + st + '</td>' +
+        '</tr>';
+      }).join('');
+    } else {
+      document.getElementById('history-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Không có dữ liệu</td></tr>';
+    }
+  }).catch(function() {
+    btn.textContent = 'Lọc dữ liệu';
+    btn.disabled = false;
+    document.getElementById('history-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Lỗi tải dữ liệu</td></tr>';
+  });
+});
+</script>
+{% endblock %}

@@ -230,6 +230,11 @@
     <span style="color:var(--txt-3);font-size:12px;">Đang tải dữ liệu quạt…</span>
   </div>
 
+  <!-- CO Sensors summary cards -->
+  <div class="telem-bar" id="sensor-bar" style="background:var(--bg); border-bottom:1px solid var(--border); display:flex; flex-wrap:wrap; gap:8px;">
+    <!-- Rendered by JS -->
+  </div>
+
   <!-- Message log -->
   <div class="msg-log" id="msg-log" aria-live="polite" aria-label="Nhật ký MQTT">
     <div class="log-row" id="log-header" style="border-bottom:1px solid var(--border-strong);padding-top:8px;padding-bottom:8px">
@@ -400,6 +405,39 @@
     telemBar.innerHTML = html;
   }
 
+  /* ── Polling CO Sensors ─────────────── */
+  function pollSensors() {
+    fetch('/dashboard/api/co-sensors/', {
+      credentials: 'same-origin',
+      headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (!data.sensors) return;
+      var activeSensors = data.sensors.filter(function(s){ return s.is_active; });
+      var sbar = document.getElementById('sensor-bar');
+      if (activeSensors.length === 0) {
+        sbar.innerHTML = '<span style="color:var(--txt-3);font-size:12px;">Không có cảm biến giả lập nào đang kích hoạt.</span>';
+        return;
+      }
+      var html = '';
+      activeSensors.forEach(function(s) {
+        var h = s.operating_hours;
+        var st = h >= 18000 ? 'alarm' : (h >= 9000 ? 'warning' : 'normal');
+        var stip = st === 'alarm' ? 'var(--red)' : (st === 'warning' ? 'var(--amber)' : 'var(--green)');
+        html +=
+          '<div class="telem-card ' + st + '" style="border-color:' + stip + ';">' +
+            '<div class="tcard-strip" style="background:' + stip + ';"></div>' +
+            '<div class="tcard-name" title="' + escapeHTML(s.name) + '">' + escapeHTML(s.sensor_id) + '</div>' +
+            '<div class="tcard-co" style="font-size:14px; color:' + stip + ';">' + h.toFixed(1) + ' h</div>' +
+            '<div class="tcard-meta">Max 18000h</div>' +
+          '</div>';
+      });
+      sbar.innerHTML = html;
+    })
+    .catch(function(err){ console.warn('[poll-sensors]', err); });
+  }
+
   /* ── Publish tự do qua API ───────────────── */
   document.getElementById('btn-publish').addEventListener('click', function(){
     var topicEl   = document.getElementById('pub-topic');
@@ -502,10 +540,12 @@
     pollMqttLog();
     pollTelemetry();
     pollMqttStatus();
+    pollSensors();
     pollTimer = setInterval(function(){
       pollMqttLog();
       pollTelemetry();
       pollMqttStatus();
+      pollSensors();
     }, 1000);
   }
 
