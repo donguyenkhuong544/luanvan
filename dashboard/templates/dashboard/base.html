@@ -885,8 +885,7 @@
       <div class="mqtt-pill" id="sb-mqtt-pill">
         <span class="mqtt-dot disconnected" id="sb-mqtt-dot"></span>
         <span class="mqtt-pill-text" id="sb-mqtt-text">
-          {% if mqtt_config %}{{ mqtt_config.broker_host }}:{{ mqtt_config.broker_port }}{% else %}Chưa cấu hình{% endif
-          %}
+          {% if mqtt_config %}{{ mqtt_config.broker_host }}:{{ mqtt_config.broker_port }}{% else %}Chưa cấu hình{% endif %}
         </span>
       </div>
       <div class="sb-user">
@@ -1049,7 +1048,7 @@
 
     // Tính năng phân quyền
     // ── Pending Approvals polling (for Admin) ──
-    {% if request.user | has_role: 'Admin' %}
+    {% if request.user|has_role:'Admin' %}
     (function () {
       function checkPending() {
         fetch('{% url "dashboard:api_pending_requests" %}')

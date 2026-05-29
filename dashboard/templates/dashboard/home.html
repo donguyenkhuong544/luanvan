@@ -710,8 +710,7 @@
         <!-- Normal Speed Container -->
         <div class="speed-normal-wrap" id="speed-normal-wrap-{{ unit.unit_id }}"
           style="display: {% if not unit.last_tripped and not unit.last_fire_alarm %}block{% else %}none{% endif %};">
-          <div class="speed-num" id="spd-val-{{ unit.unit_id }}">{% if online %}{{ unit.last_speed_pct|default:"0" }}{%
-            else %}0{% endif %}<span style="font-size:13px;font-weight:500;color:var(--txt-2)">%</span></div>
+          <div class="speed-num" id="spd-val-{{ unit.unit_id }}">{% if online %}{{ unit.last_speed_pct|default:"0" }}{% else %}0{% endif %}<span style="font-size:13px;font-weight:500;color:var(--txt-2)">%</span></div>
           <div class="speed-unit">Tốc độ</div>
           <div class="speed-bar-wrap">
             <div class="speed-bar" id="spd-bar-{{ unit.unit_id }}"

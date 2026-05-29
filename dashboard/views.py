@@ -350,11 +350,12 @@ def api_chat(request):
             )
 
         # Context for Simulated CO Sensors
-        active_sensors = SimulatedCOSensor.objects.filter(is_active=True)
-        if active_sensors.exists():
-            sensor_ctx = ["- Các cảm biến CO giả lập đang kích hoạt (Giới hạn hoạt động tối đa: 18000 giờ):"]
-            for s in active_sensors:
-                sensor_ctx.append(f"  + {s.sensor_id} ({s.name}, {s.description}): {s.operating_hours:.1f} giờ")
+        all_sensors = SimulatedCOSensor.objects.all()
+        if all_sensors.exists():
+            sensor_ctx = ["- Các cảm biến CO giả lập (Giới hạn hoạt động tối đa: 18000 giờ, báo bảo trì khi > 9000 giờ, yêu cầu thay thế khi > 18000 giờ):"]
+            for s in all_sensors:
+                status_str = "Đang chạy (ON)" if s.is_active else "Không chạy (OFF)"
+                sensor_ctx.append(f"  + {s.sensor_id} ({s.name}, {s.description}): Trạng thái: {status_str}, Hoạt động: {s.get_realtime_hours():.1f} giờ")
             ctx.extend(sensor_ctx)
 
         expert_prompt = (
@@ -592,7 +593,7 @@ def api_get_sensors(request):
     data = [{
         'sensor_id': s.sensor_id,
         'name': s.name,
-        'operating_hours': s.operating_hours,
+        'operating_hours': round(s.get_realtime_hours(), 1),
         'is_active': s.is_active,
         'description': s.description,
     } for s in sensors]
@@ -609,7 +610,8 @@ def api_update_sensors(request):
         for item in sensors_data:
             SimulatedCOSensor.objects.filter(sensor_id=item['sensor_id']).update(
                 operating_hours=float(item.get('operating_hours', 0)),
-                is_active=bool(item.get('is_active', False))
+                is_active=bool(item.get('is_active', False)),
+                last_updated=timezone.now()
             )
         return JsonResponse({'ok': True, 'message': 'Đã cập nhật cảm biến giả lập'})
     except Exception as exc:
@@ -645,7 +647,7 @@ def api_history_table(request):
     elif status_filter == 'normal':
         qs = qs.filter(is_tripped=False, co_ppm__lt=25)
 
-    qs = qs.order_by('-timestamp')[:500] # Limit to 500 rows for UI performance
+    qs = qs.order_by('-timestamp')[:500] # giới hạn 500 bản ghi
 
     data = [{
         'timestamp': r.timestamp.isoformat(),

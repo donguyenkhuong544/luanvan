@@ -176,13 +176,24 @@ class SimulatedCOSensor(models.Model):
     name = models.CharField('Tên cảm biến', max_length=100)
     zone = models.CharField('Khu vực', max_length=50, default='B1')
     operating_hours = models.FloatField('Số giờ hoạt động', default=0)
-    is_active = models.BooleanField('Kích hoạt', default=False)
+    is_active = models.BooleanField('Trạng thái', default=False)
     description = models.CharField('Mô tả/Vị trí', max_length=200, blank=True)
+    last_updated = models.DateTimeField('Lần cập nhật cuối', auto_now=True, null=True)
 
     class Meta:
-        ordering = ['sensor_id']
+        ordering = ['sensor_id'] # sắp xếp các cảm biến theo thứ tự tăng dần
         verbose_name = 'Cảm biến CO Giả lập'
         verbose_name_plural = 'Danh sách cảm biến CO'
-
+    # Hàm __str__ dùng để định danh đối tượng khi in ra
     def __str__(self):
         return f'{self.sensor_id} - {self.name}'
+# cập nhật real-time đúng theo thực tế, khi cảm biến tắt thì dừng tính
+# hàm get_real_time_hours tính số giờ hoạt động theo thời gian thực tế
+    def get_realtime_hours(self):
+        from django.utils import timezone
+        if self.is_active and self.last_updated:        #kiểm tra xem cảm biến có hoạt động chưa và cảm biến có cập nhật chưa
+            diff_hours = (timezone.now() - self.last_updated).total_seconds() / 3600.0
+            return min(self.operating_hours + diff_hours, 18000.0)      #cộng dồn, không vượt quá 18000 giờ
+        return self.operating_hours
+
+
