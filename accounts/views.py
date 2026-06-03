@@ -90,4 +90,18 @@ def logout_view(request):
     messages.info(request, 'Bạn đã đăng xuất thành công.')
     return redirect('accounts:login')
 
+from .forms import UserProfileForm
+
+@login_required
+def profile_view(request):
+    profile = request.user.profile
+    if request.method == 'POST':
+        form = UserProfileForm(request.POST, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Đã cập nhật cấu hình thông báo thành công.')
+            return redirect('accounts:profile')
+    else:
+        form = UserProfileForm(instance=profile)
+    return render(request, 'accounts/profile.html', {'form': form})
 

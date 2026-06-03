@@ -196,4 +196,18 @@ class SimulatedCOSensor(models.Model):
             return min(self.operating_hours + diff_hours, 18000.0)      #cộng dồn, không vượt quá 18000 giờ
         return self.operating_hours
 
+class AuditLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='audit_logs')
+    action = models.CharField('Hành động', max_length=255)
+    unit = models.ForeignKey(FanUnit, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_logs')
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    details = models.TextField('Chi tiết', blank=True)
 
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'Nhật ký người dùng'
+        verbose_name_plural = 'Nhật ký người dùng'
+
+    def __str__(self):
+        username = self.user.username if self.user else "Hệ thống"
+        return f'{self.timestamp.strftime("%Y-%m-%d %H:%M:%S")} - {username} - {self.action}'

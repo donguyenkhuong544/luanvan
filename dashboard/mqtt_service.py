@@ -171,6 +171,14 @@ def _on_message(client, userdata, msg):
 
         FanUnit.objects.filter(pk=unit.pk).update(**update_fields)
 
+        # Kiểm tra cảnh báo để gọi điện (Twilio Mock)
+        if fire_alarm:
+            from .twilio_service import trigger_alert_call
+            trigger_alert_call(unit_id, "Tín hiệu BÁO CHÁY được kích hoạt")
+        elif co_ppm >= unit.co_alarm_ppm:
+            from .twilio_service import trigger_alert_call
+            trigger_alert_call(unit_id, f"Nồng độ CO vượt mức BÁO ĐỘNG ({co_ppm} ppm)")
+
         # Increment message counter
         with _state_lock:
             _mqtt_state['messages_received'] += 1

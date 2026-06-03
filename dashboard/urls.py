@@ -32,6 +32,7 @@ urlpatterns = [
     path('api/pending-requests/<int:req_id>/reject/', views.api_reject_request, name='api_reject_request'),
     path('api/co-sensors/',                        views.api_get_sensors,    name='api_get_sensors'),
     path('api/co-sensors/update/',                 views.api_update_sensors, name='api_update_sensors'),
+    path('api/audit-logs/',                        views.api_audit_logs,     name='api_audit_logs'),
 
     # MQTT Client API 
     path('api/mqtt/status/',       views.api_mqtt_status,      name='api_mqtt_status'),

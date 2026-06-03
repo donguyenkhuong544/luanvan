@@ -869,6 +869,14 @@
       </a>
       {% endif %}
 
+      <a href="{% url 'accounts:profile' %}" class="sb-link {% if page == 'profile' %}active{% endif %}" data-tip="Hồ sơ cá nhân" id="nav-profile">
+        <svg class="sb-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span class="sb-label">Hồ sơ cá nhân</span>
+      </a>
+
       <a href="{% url 'accounts:logout' %}" class="sb-link" data-tip="Đăng xuất" id="nav-logout">
         <svg class="sb-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />

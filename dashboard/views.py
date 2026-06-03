@@ -16,7 +16,6 @@ from accounts.decorators import role_required
 
 logger = logging.getLogger(__name__)
 
-
 # xây dựng API, kiểu như người giúp đỡ
 
 def _mqtt_cfg():
@@ -64,6 +63,11 @@ def home_view(request):
     running = sum(1 for u in units if u.is_online() and u.last_speed_pct and u.last_speed_pct > 0)
     faults  = sum(1 for u in units if u.is_online() and u.last_tripped)
     fire_alarms = sum(1 for u in units if u.is_online() and u.last_fire_alarm)
+    
+    # Lấy danh sách các zone (tầng/khu vực) duy nhất từ DB để filter
+    raw_zones = FanUnit.objects.filter(is_active=True).values_list('zone',flat=True)
+    zones = sorted(list(set(z.strip() for z in raw_zones if z and z.strip())))
+    
     return render(request, 'dashboard/home.html', {
         'page':        'home',
         'mqtt_config': _mqtt_cfg(),
@@ -72,6 +76,7 @@ def home_view(request):
         'faults':      faults,
         'fire_alarms': fire_alarms,
         'total_fans':  units.count(),
+        'zones':       zones,
     })
 
 
@@ -254,6 +259,15 @@ def api_command(request, unit_id):
         cfg   = _mqtt_cfg()
         topic = f'{unit.get_topic_base()}/command'
         publish_command(cfg, topic, payload)
+        
+        from .models import AuditLog
+        AuditLog.objects.create(
+            user=request.user,
+            action=f"Thay đổi chế độ quạt",
+            unit=unit,
+            details=f"Chế độ: {mode.upper()}, Tốc độ: {speed}%"
+        )
+        
         return JsonResponse({'ok': True, 'mode': mode, 'speed': speed})
     except Exception as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
@@ -292,6 +306,15 @@ def api_profile_save(request, unit_id):
         payload = {'profile': [{'co': p['co_ppm'], 'speed': p['speed_pct']}
                                 for p in points]}
         publish_command(cfg, topic, payload)
+        
+        from .models import AuditLog
+        AuditLog.objects.create(
+            user=request.user,
+            action=f"Cập nhật thông số tự động (Profile)",
+            unit=unit,
+            details=f"Đã cập nhật {len(points)} điểm"
+        )
+        
         return JsonResponse({'ok': True, 'count': len(points)})
     except Exception as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
@@ -572,6 +595,15 @@ def api_approve_request(request, req_id):
         req.status = 'approved'
         req.resolved_at = timezone.now()
         req.save()
+        
+        from .models import AuditLog
+        AuditLog.objects.create(
+            user=request.user,
+            action=f"Duyệt yêu cầu điều khiển từ {req.user.username}",
+            unit=unit,
+            details=f"Loại: {req.command_type}, Dữ liệu: {json.dumps(req.payload)}"
+        )
+        
         return JsonResponse({'ok': True})
     except Exception as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
@@ -660,4 +692,17 @@ def api_history_table(request):
     } for r in qs]
     
     return JsonResponse({'ok': True, 'data': data})
+
+@login_required(login_url='accounts:login')
+def api_audit_logs(request):
+    from .models import AuditLog
+    qs = AuditLog.objects.select_related('user', 'unit').all()[:200]
+    data = [{
+        'timestamp': r.timestamp.isoformat(),
+        'user': r.user.username if r.user else 'Hệ thống',
+        'action': r.action,
+        'unit': r.unit.unit_id if r.unit else '',
+        'details': r.details
+    } for r in qs]
+    return JsonResponse({'ok': True, 'logs': data})
 

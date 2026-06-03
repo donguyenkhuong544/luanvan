@@ -3,67 +3,156 @@
 {% block page_title %}Tra cứu lịch sử{% endblock %}
 
 {% block content %}
-<div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
-  <div style="font-size:13.5px;font-weight:700;margin-bottom:12px;">Bộ lọc dữ liệu</div>
-  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-    <div style="flex:1; min-width:150px;">
-      <label style="font-size:11px;font-weight:700;color:var(--txt-2);display:block;margin-bottom:4px;">Bộ quạt</label>
-      <select id="filter-unit" style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--txt);">
-        <option value="all">Tất cả</option>
-        {% for u in units %}
-        <option value="{{ u.unit_id }}">{{ u.unit_id }} - {{ u.name }}</option>
-        {% endfor %}
-      </select>
+<style>
+  .history-tabs {
+    display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px;
+  }
+  .htab {
+    padding: 8px 16px; border-radius: 8px; border: 1px solid transparent; background: none; color: var(--txt-2);
+    font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s;
+  }
+  .htab.active {
+    background: var(--bg-active); border-color: var(--cyan-dim); color: var(--txt-active);
+  }
+  .htab:hover:not(.active) { background: var(--bg-hover); color: var(--txt); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+</style>
+
+<div class="history-tabs">
+  <button class="htab active" onclick="switchTab('telemetry', this)">Dữ liệu thiết bị</button>
+  <button class="htab" onclick="switchTab('audit', this)">Nhật ký người dùng</button>
+</div>
+
+<!-- TAB 1: Dữ liệu thiết bị (Telemetry) -->
+<div id="tab-telemetry" class="tab-pane active">
+  <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
+    <div style="font-size:13.5px;font-weight:700;margin-bottom:12px;">Bộ lọc dữ liệu</div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+      <div style="flex:1; min-width:150px;">
+        <label style="font-size:11px;font-weight:700;color:var(--txt-2);display:block;margin-bottom:4px;">Bộ quạt</label>
+        <select id="filter-unit" style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--txt);">
+          <option value="all">Tất cả</option>
+          {% for u in units %}
+          <option value="{{ u.unit_id }}">{{ u.unit_id }} - {{ u.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="flex:1; min-width:150px;">
+        <label style="font-size:11px;font-weight:700;color:var(--txt-2);display:block;margin-bottom:4px;">Từ thời gian</label>
+        <input type="datetime-local" id="filter-date-from" style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--txt);">
+      </div>
+      <div style="flex:1; min-width:150px;">
+        <label style="font-size:11px;font-weight:700;color:var(--txt-2);display:block;margin-bottom:4px;">Đến thời gian</label>
+        <input type="datetime-local" id="filter-date-to" style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--txt);">
+      </div>
+      <div style="flex:1; min-width:150px;">
+        <label style="font-size:11px;font-weight:700;color:var(--txt-2);display:block;margin-bottom:4px;">Trạng thái</label>
+        <select id="filter-status" style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--txt);">
+          <option value="all">Tất cả</option>
+          <option value="fault">Lỗi (Trip)</option>
+          <option value="overload">Quá tải (CO cao)</option>
+          <option value="normal">Bình thường</option>
+        </select>
+      </div>
+      <div>
+        <button id="btn-load-history" style="padding:9px 16px;background:var(--cyan);color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">Lọc dữ liệu</button>
+      </div>
     </div>
-    <div style="flex:1; min-width:150px;">
-      <label style="font-size:11px;font-weight:700;color:var(--txt-2);display:block;margin-bottom:4px;">Từ thời gian</label>
-      <input type="datetime-local" id="filter-date-from" style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--txt);">
+  </div>
+
+  <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+    <div style="padding:12px 18px;border-bottom:1px solid var(--border);background:var(--bg-hover);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:13.5px;font-weight:700;">Bảng dữ liệu lịch sử (500 bản ghi gần nhất)</div>
     </div>
-    <div style="flex:1; min-width:150px;">
-      <label style="font-size:11px;font-weight:700;color:var(--txt-2);display:block;margin-bottom:4px;">Đến thời gian</label>
-      <input type="datetime-local" id="filter-date-to" style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--txt);">
-    </div>
-    <div style="flex:1; min-width:150px;">
-      <label style="font-size:11px;font-weight:700;color:var(--txt-2);display:block;margin-bottom:4px;">Trạng thái</label>
-      <select id="filter-status" style="width:100%;padding:8px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--txt);">
-        <option value="all">Tất cả</option>
-        <option value="fault">Lỗi (Trip)</option>
-        <option value="overload">Quá tải (CO cao)</option>
-        <option value="normal">Bình thường</option>
-      </select>
-    </div>
-    <div>
-      <button id="btn-load-history" style="padding:9px 16px;background:var(--cyan);color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">Lọc dữ liệu</button>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);color:var(--txt-2);">
+            <th style="padding:12px;">Thời gian</th>
+            <th style="padding:12px;">Mã quạt</th>
+            <th style="padding:12px;">CO (ppm)</th>
+            <th style="padding:12px;">Tốc độ</th>
+            <th style="padding:12px;">Chế độ</th>
+            <th style="padding:12px;">Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody id="history-tbody">
+          <tr><td colspan="6" style="text-align:center;padding:20px;">Nhấn "Lọc dữ liệu" để xem lịch sử...</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
 
-<div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-  <div style="padding:12px 18px;border-bottom:1px solid var(--border);background:var(--bg-hover);display:flex;justify-content:space-between;align-items:center;">
-    <div style="font-size:13.5px;font-weight:700;">Bảng dữ liệu lịch sử (500 bản ghi gần nhất)</div>
-  </div>
-  <div style="overflow-x:auto;">
-    <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--border);color:var(--txt-2);">
-          <th style="padding:12px;">Thời gian</th>
-          <th style="padding:12px;">Mã quạt</th>
-          <th style="padding:12px;">CO (ppm)</th>
-          <th style="padding:12px;">Tốc độ</th>
-          <th style="padding:12px;">Chế độ</th>
-          <th style="padding:12px;">Trạng thái</th>
-        </tr>
-      </thead>
-      <tbody id="history-tbody">
-        <tr><td colspan="6" style="text-align:center;padding:20px;">Nhấn "Lọc dữ liệu" để xem lịch sử...</td></tr>
-      </tbody>
-    </table>
+<!-- TAB 2: Nhật ký người dùng (Audit Log) -->
+<div id="tab-audit" class="tab-pane">
+  <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+    <div style="padding:12px 18px;border-bottom:1px solid var(--border);background:var(--bg-hover);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:13.5px;font-weight:700;">Nhật ký thao tác người dùng (Audit Log)</div>
+      <button onclick="loadAuditLogs()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--txt);cursor:pointer;font-size:12px;font-weight:600;">Làm mới</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);color:var(--txt-2);">
+            <th style="padding:12px;">Thời gian</th>
+            <th style="padding:12px;">Người dùng</th>
+            <th style="padding:12px;">Hành động</th>
+            <th style="padding:12px;">Mã quạt</th>
+            <th style="padding:12px;">Chi tiết</th>
+          </tr>
+        </thead>
+        <tbody id="audit-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:20px;">Đang tải...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
+// Tab switching
+function switchTab(tabId, btn) {
+  document.querySelectorAll('.htab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + tabId).classList.add('active');
+  if (tabId === 'audit') loadAuditLogs();
+}
+
+// Load Audit Logs
+function loadAuditLogs() {
+  const tbody = document.getElementById('audit-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">Đang tải...</td></tr>';
+  fetch('/dashboard/api/audit-logs/')
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok && d.logs.length > 0) {
+        tbody.innerHTML = d.logs.map(log => {
+          const dt = new Date(log.timestamp).toLocaleString('vi-VN');
+          return `
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:10px;">${dt}</td>
+              <td style="padding:10px;font-weight:600;color:var(--cyan);">${log.user}</td>
+              <td style="padding:10px;">${log.action}</td>
+              <td style="padding:10px;font-family:'JetBrains Mono',monospace;">${log.unit || '-'}</td>
+              <td style="padding:10px;color:var(--txt-2);">${log.details || ''}</td>
+            </tr>
+          `;
+        }).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">Chưa có nhật ký nào</td></tr>';
+      }
+    })
+    .catch(() => {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">Lỗi tải dữ liệu</td></tr>';
+    });
+}
+
+// Original Telemetry Load
 document.getElementById('btn-load-history').addEventListener('click', function() {
   var unitId = document.getElementById('filter-unit').value;
   var dFrom = document.getElementById('filter-date-from').value;

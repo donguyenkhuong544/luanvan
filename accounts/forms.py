@@ -18,3 +18,14 @@ class LoginForm(forms.Form):
         })
     )
     remember_me = forms.BooleanField(required=False, initial=False)
+
+from .models import UserProfile
+
+class UserProfileForm(forms.ModelForm):
+    class Meta:
+        model = UserProfile
+        fields = ['phone_number', 'receive_call_alerts']
+        widgets = {
+            'phone_number': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'VD: +84987654321'}),
+            'receive_call_alerts': forms.CheckboxInput(attrs={'class': 'toggle-checkbox'}),
+        }

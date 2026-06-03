@@ -1,0 +1,69 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Hồ sơ cá nhân - FanJet BMS{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto mt-10">
+    <div class="bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-700">
+        <h2 class="text-2xl font-bold text-white mb-6">Cài đặt Cảnh báo</h2>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-4 p-3 rounded text-sm {% if message.tags == 'success' %}bg-green-500/20 text-green-400{% else %}bg-red-500/20 text-red-400{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label for="{{ form.phone_number.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-1">
+                    {{ form.phone_number.label }}
+                </label>
+                {{ form.phone_number }}
+                <p class="text-xs text-gray-400 mt-1">Sử dụng định dạng quốc tế, ví dụ: +84987654321</p>
+                {% if form.phone_number.errors %}
+                    <div class="text-red-400 text-xs mt-1">{{ form.phone_number.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="flex items-center space-x-3 pt-2">
+                {{ form.receive_call_alerts }}
+                <label for="{{ form.receive_call_alerts.id_for_label }}" class="text-sm font-medium text-gray-300 cursor-pointer">
+                    {{ form.receive_call_alerts.label }}
+                </label>
+            </div>
+
+            <div class="pt-6">
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition">
+                    Lưu cài đặt
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    /* Styling cho input form */
+    .form-input {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        background-color: #374151; /* gray-700 */
+        border: 1px solid #4b5563; /* gray-600 */
+        border-radius: 0.375rem;
+        color: white;
+    }
+    .form-input:focus {
+        outline: none;
+        border-color: #3b82f6; /* blue-500 */
+        box-shadow: 0 0 0 1px #3b82f6;
+    }
+    .toggle-checkbox {
+        width: 1.25rem;
+        height: 1.25rem;
+        border-radius: 0.25rem;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
